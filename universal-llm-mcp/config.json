@@ -1,0 +1,55 @@
+{
+    "backends": {
+        "lmstudio": {
+            "enabled": true,
+            "url": "http://127.0.0.1:1234",
+            "defaultModel": "auto",
+            "timeout": 120000
+        },
+        "ollama": {
+            "enabled": true,
+            "url": "http://127.0.0.1:11434",
+            "defaultModel": "llama3",
+            "timeout": 120000
+        }
+    },
+    "routing": {
+        "code": "lmstudio",
+        "chat": "ollama",
+        "translate": "lmstudio",
+        "file": "lmstudio",
+        "default": "ollama"
+    },
+    "language": {
+        "default": "tr",
+        "systemPrompt": "Sen Turkce dusunen ve Turkce yanit veren bir yapay zeka asistanisin."
+    },
+    "tools": {
+        "enabled": [
+            "code",
+            "chat",
+            "translate",
+            "file",
+            "rag",
+            "training"
+        ]
+    },
+    "rag": {
+        "enabled": true,
+        "chunkSize": 500,
+        "chunkOverlap": 50,
+        "topK": 3,
+        "embeddingBackend": "ollama"
+    },
+    "training": {
+        "enabled": true,
+        "questionBankPath": "./training-data/questions.json",
+        "categories": [
+            "matematik",
+            "mantik",
+            "kod",
+            "dil",
+            "analiz"
+        ]
+    }
+}

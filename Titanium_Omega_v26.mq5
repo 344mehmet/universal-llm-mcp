@@ -1,0 +1,1165 @@
+//+------------------------------------------------------------------+
+//|                                     Titanium_Omega_v26.mq5       |
+//|                     © 2025, Systemic Trading Engineering         |
+//|       Versiyon: 26.0 (ROBUST TRADING - AUTO FILL + LOG SYSTEM)  |
+//+------------------------------------------------------------------+
+#property copyright "© 2025, Systemic Trading Engineering"
+#property version   "26.00"
+#property strict
+
+#include <Trade\Trade.mqh>
+
+//--- ENUMS
+enum ENUM_MARKET_REGIME {
+   REGIME_HIGH_VOLATILITY, // Yüksek Volatilite (Bekle)
+   REGIME_TRENDING,        // Trend (İşlem Yap)
+   REGIME_RANGING          // Yatay (Dikkatli Ol)
+};
+
+enum ENUM_STRATEGY_MODE {
+   STRATEGY_FRACTAL_REVERSAL, // Mevcut: Dönüş Yakalama (Sniper)
+   STRATEGY_HMA_CROSS         // Yeni: Trend Takip (Ralli)
+};
+
+//--- INPUTS
+//--- 1. ANA AYARLAR
+input group "=== 1. MAIN SETTINGS ==="
+input ulong    InpMagic           = 123456;    // Magic Number
+input string   InpComment         = "Titanium Omega v26"; // İşlem Yorumu
+input bool     InpShowDashboard   = true;      // Bilgi Paneli Göster
+input ENUM_STRATEGY_MODE InpStrategyMode = STRATEGY_FRACTAL_REVERSAL; // Strateji Modu
+
+//--- 2. RİSK VE SERMAYE YÖNETİMİ
+input group "=== 2. RISK & CAPITAL ==="
+input double   InpBaseRiskPercent = 1.0;      // Baz Risk %
+input double   InpMaxDailyLoss    = 30.0;     // Günlük Max Zarar % (10$ için %30 = 3$)
+input double   InpMaxMoneyDD      = 5.0;      // Günlük Max Zarar $
+input double   InpMinMarginLevel  = 50.0;     // Min Marjin Seviyesi % (Düşürüldü)
+input bool     InpDetectDeposit   = true;     // Para Yatırma/Çekme Algıla
+
+//--- 3. GRID MATRİSİ
+input group "=== 3. GRID MATRIX ==="
+input double   InpFixedLot        = 0.01;     // Sabit Lot
+input int      InpMaxOrders       = 1;        // Max Basamak Sayısı (10$ için Grid KAPALI)
+input int      InpStepPips        = 15;       // Adım Aralığı (Pips)
+input int      InpSL_Pips         = 20;       // Stop Loss (Pips)
+input int      InpTP_Pips         = 50;       // Take Profit (Pips)
+input int      InpExpirationHrs   = 4;        // Bekleyen Emir Ömrü (Saat)
+
+//--- 4. STRATEJİ MOTORU
+input group "=== 4. STRATEGY ENGINE ==="
+input ENUM_TIMEFRAMES HigherTF    = PERIOD_M15; // MTF Onayı (Hızlandırıldı: H4 -> M15)
+input int      MainTrend_MA       = 200;       // Ana Trend Filtresi (HMA Kullanılacak)
+input int      InpHMA_Fast        = 20;        // HMA Cross Hızlı Periyot (Mod 2)
+input int      InpHMA_Slow        = 50;        // HMA Cross Yavaş Periyot (Mod 2)
+input int      Regime_Lookback    = 50;        // Volatilite Ortalaması İçin Bar Sayısı
+input double   Vol_Explosion_Mul  = 1.8;       // Volatilite Patlama Çarpanı
+
+//--- 5. GÜVENLİK VE STRES TESTİ
+input group "=== 5. SAFETY & STRESS ==="
+input int      InpMaxSpreadPips   = 6;        // Max Spread
+input bool     InpUseTimeFilter   = false;    // Zaman Filtresi (Test için KAPALI)
+input int      InpStartHour       = 8;        // Başlangıç
+input int      InpEndHour         = 20;       // Bitiş
+input bool     StressTest_Mode    = false;    // STRES TESTİ (Slippage Simülasyonu)
+input int      Simulated_Slippage = 10;       // Simüle Kayma (Points)
+
+//--- 6. OPERASYONEL
+input group "=== 6. OPS & MANAGEMENT ==="
+input bool     InpUseBreakeven    = true;     // Breakeven Kullan
+input bool     InpUseTrailing     = true;     // Trailing Stop (İzleyen Stop) Kullan
+input int      InpTrailingStart   = 10;       // Trailing Başlangıç (Pips)
+input int      InpTrailingStep    = 5;        // Trailing Adım (Pips)
+input bool     InpUseSmartPartial = true;     // Akıllı Kısmi Kapama
+input bool     InpManageManual    = true;     // Manuel İşlemleri de Yönet (OTOMATİK KORUMA)
+
+//--- 7. AI & HABER
+input group "=== 7. AI & NEWS FILTER ==="
+input bool     InpUseNewsFilter   = true;     // Haber Filtresi (Ekonomik Takvim)
+input int      InpNewsPauseMins   = 60;       // Haber Öncesi/Sonrası Bekleme (Dk)
+input bool     InpUseDynamicLot   = true;     // Dinamik Lot (ATR Bazlı)
+input bool     InpUsePerformance  = true;     // Performans Analizi (Basit ML)
+input int      InpMaxLoseStreak   = 3;        // Üst Üste Max Zarar (Duraklatma İçin)
+
+//--- 8. RULE ENFORCER (GÜVENLİK v24)
+input group "=== 8. TANK SECURITY (v24) ==="
+input int      InpMaxTradesPerDay      = 10;       // Günlük Maksimum İşlem Sayısı (0 = Sınırsız)
+input int      InpMinRequestIntervalMs = 100;      // Emirler Arası Bekleme (Anti-Spam, ms)
+input bool     InpStrictInitChecks     = true;     // Başlangıçta Sıkı Veri Kontrolü
+
+//--- 9. TEST & DEBUG (v26)
+input group "=== 9. TEST & DEBUG ==="
+input bool     InpTestMode             = false;    // Test Modu (Başlangıçta İşlem Aç)
+input bool     InpForceShowDashboard   = true;     // Dashboard'ı Her Zaman Göster
+
+// GLOBAL KONTROL DEĞİŞKENLERİ
+string g_StateReason = "Başlatılıyor...";
+int    g_tradesTodayCount = 0;
+datetime g_today_start = 0;
+long   g_lastTradeOperationTime = 0;
+
+//====================================================================
+// CLASS: PRICE ENGINE
+//====================================================================
+class CPriceEngine
+{
+public:
+   static double PipToPoints(int pips)
+   {
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      return pips * 10.0 * point;
+   }
+
+   // Broker StopLevel Kontrolü
+   static bool CheckStopLevel(double entry, double sl, double tp, int direction)
+   {
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      long stopLevelPts = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+      double stopLevel = (double)stopLevelPts * point;
+      
+      if(stopLevel == 0) 
+         stopLevel = (double)SymbolInfoInteger(_Symbol, SYMBOL_SPREAD) * point;
+      
+      double safeDist = 10 * point; // Güvenlik payı
+
+      if(direction == 1) // BUY
+         return (sl < entry - safeDist) && (tp > entry + safeDist) && 
+                (entry - sl >= stopLevel) && (tp - entry >= stopLevel);
+      else if(direction == -1) // SELL
+         return (sl > entry + safeDist) && (tp < entry - safeDist) && 
+                (sl - entry >= stopLevel) && (entry - tp >= stopLevel);
+      
+      return false;
+   }
+   
+   // --- ANTI-SPAM (v24) ---
+   static void EnforceRequestInterval()
+   {
+      if (InpMinRequestIntervalMs <= 0) return;
+
+      long current_tick_count = GetTickCount();
+      long elapsed = current_tick_count - g_lastTradeOperationTime;
+
+      if (elapsed < InpMinRequestIntervalMs)
+      {
+         long time_to_sleep = InpMinRequestIntervalMs - elapsed;
+         if (time_to_sleep > 0) Sleep((int)time_to_sleep);
+      }
+      g_lastTradeOperationTime = GetTickCount(); // Süreç sıfırlandı
+   }
+};
+
+//====================================================================
+// CLASS: SECURITY MANAGER
+//====================================================================
+class CSecurityManager
+{
+private:
+   double            m_refBalance;
+   double            m_lastKnownBalance;
+   int               m_dayOfYear;
+
+public:
+   void Init() { UpdateReference(true); }
+
+   void UpdateReference(bool forceReset = false)
+   {
+      MqlDateTime dt; 
+      TimeCurrent(dt);
+      if(forceReset || dt.day_of_year != m_dayOfYear)
+      {
+         m_dayOfYear = dt.day_of_year;
+         m_refBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+         m_lastKnownBalance = m_refBalance;
+         Print("GÜNLÜK REFERANS GÜNCELLENDİ: ", m_refBalance);
+      }
+   }
+
+   bool IsSafeToTrade()
+   {
+      UpdateReference();
+
+      // Para Transferi Algılama
+      double currentBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      if(InpDetectDeposit && MathAbs(currentBalance - m_lastKnownBalance) > 0.001)
+      {
+         if(PositionsTotal() == 0) 
+         {
+            m_refBalance += (currentBalance - m_lastKnownBalance);
+            Print("PARA TRANSFERİ ALGILANDI. Referans güncellendi.");
+         }
+         m_lastKnownBalance = currentBalance;
+      }
+
+      // Günlük Zarar Kontrolü
+      double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+      double loss = m_refBalance - equity;
+      
+      if(loss >= InpMaxMoneyDD || (m_refBalance > 0 && (loss/m_refBalance)*100.0 >= InpMaxDailyLoss))
+      {
+         g_StateReason = "GÜNLÜK ZARAR LİMİTİ DOLDU";
+         return false;
+      }
+
+      // Marjin ve Sembol Kontrolü
+      double marginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
+      if(marginLevel > 0 && marginLevel < InpMinMarginLevel) 
+      {
+         g_StateReason = "DÜŞÜK MARJİN: %" + DoubleToString(marginLevel, 1);
+         return false;
+      }
+      
+      if(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_MODE) != SYMBOL_TRADE_MODE_FULL) 
+      {
+         g_StateReason = "SEMBOL İŞLEME KAPALI";
+         return false;
+      }
+
+      // Zaman Filtresi
+      if(InpUseTimeFilter)
+      {
+         MqlDateTime dt; 
+         TimeCurrent(dt);
+         if(dt.hour < InpStartHour || dt.hour >= InpEndHour) 
+         {
+            g_StateReason = "ZAMAN FİLTRESİ: " + IntegerToString(dt.hour) + ":00";
+            return false;
+         }
+      }
+      
+      // Spread Kontrolü
+      long spread = SymbolInfoInteger(_Symbol, SYMBOL_SPREAD);
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      double spreadPips = spread * point / CPriceEngine::PipToPoints(1);
+      
+      if(spreadPips > InpMaxSpreadPips)
+      {
+          g_StateReason = "YÜKSEK SPREAD: " + DoubleToString(spreadPips, 1);
+          return false;
+      }
+
+      return true;
+   }
+     
+   double GetDailyPL() 
+   { 
+      return AccountInfoDouble(ACCOUNT_EQUITY) - m_refBalance; 
+   }
+   
+   // --- BASİT ML: PERFORMANS ANALİZİ ---
+   bool CheckPerformance()
+   {
+      if(!InpUsePerformance) return true;
+      
+      HistorySelect(0, TimeCurrent());
+      int total = HistoryDealsTotal();
+      int loseStreak = 0;
+      
+      for(int i = total - 1; i >= 0; i--)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket > 0)
+         {
+            if(HistoryDealGetInteger(ticket, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+            {
+               double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+               if(profit < 0) loseStreak++;
+               else if(profit > 0) break; // Kazanç gördüğü an sayacı sıfırla
+            }
+         }
+         if(loseStreak >= InpMaxLoseStreak) break;
+      }
+      
+      if(loseStreak >= InpMaxLoseStreak)
+      {
+         g_StateReason = "PERFORMANS KORUMASI (" + IntegerToString(loseStreak) + " ZARAR)";
+         return false;
+      }
+      
+      return true;
+   }
+};
+
+//====================================================================
+// CLASS: NEWS MANAGER
+//====================================================================
+// #include <Calendar\Calendar.mqh> // Kaldırıldı: Built-in kullanılıyor
+
+class CNewsManager
+{
+public:
+   bool IsNewsTime()
+   {
+      if(!InpUseNewsFilter) return false;
+      
+      MqlCalendarValue values[];
+      datetime start = TimeCurrent() - (InpNewsPauseMins * 60);
+      datetime end   = TimeCurrent() + (InpNewsPauseMins * 60);
+      
+      // USD Haberleri
+      if(CalendarValueHistory(values, start, end, "USD", NULL) > 0)
+      {
+         for(int i=0; i<ArraySize(values); i++)
+         {
+            MqlCalendarEvent event;
+            if(CalendarEventById(values[i].event_id, event))
+            {
+               if(event.importance == CALENDAR_IMPORTANCE_HIGH)
+               {
+                  g_StateReason = "HABER FİLTRESİ (USD)";
+                  return true;
+               }
+            }
+         }
+      }
+      
+      // EUR Haberleri
+      if(CalendarValueHistory(values, start, end, "EUR", NULL) > 0)
+      {
+         for(int i=0; i<ArraySize(values); i++)
+         {
+            MqlCalendarEvent event;
+            if(CalendarEventById(values[i].event_id, event))
+            {
+               if(event.importance == CALENDAR_IMPORTANCE_HIGH)
+               {
+                  g_StateReason = "HABER FİLTRESİ (EUR)";
+                  return true;
+               }
+            }
+         }
+      }
+      
+      return false;
+   }
+};
+
+//====================================================================
+// CLASS: SIGNAL ENGINE
+//====================================================================
+class CSignalEngine
+{
+private:
+   int               m_hFrac;
+   int               m_hBands;
+   int               m_hADX;
+   
+   // HMA İçin Gerekli Handle'lar
+   int               m_hWMA_Half; // WMA(n/2)
+   int               m_hWMA_Full; // WMA(n)
+   int               m_hmaPeriod;
+   
+   // HMA Cross Handle'ları (Mod 2)
+   int               m_hHMA_Fast_Half;
+   int               m_hHMA_Fast_Full;
+   int               m_hHMA_Slow_Half;
+   int               m_hHMA_Slow_Full;
+
+   datetime          m_lastSignalTime;
+
+public:
+   CSignalEngine() : 
+      m_hFrac(INVALID_HANDLE), 
+      m_hBands(INVALID_HANDLE), 
+      m_hADX(INVALID_HANDLE),
+      m_hWMA_Half(INVALID_HANDLE),
+      m_hWMA_Full(INVALID_HANDLE),
+      m_hmaPeriod(0),
+      m_hHMA_Fast_Half(INVALID_HANDLE),
+      m_hHMA_Fast_Full(INVALID_HANDLE),
+      m_hHMA_Slow_Half(INVALID_HANDLE),
+      m_hHMA_Slow_Full(INVALID_HANDLE),
+      m_lastSignalTime(0) {}
+   
+   ~CSignalEngine() 
+   { 
+      ReleaseHandles();
+   }
+   
+   void ReleaseHandles()
+   {
+      if(m_hFrac != INVALID_HANDLE) { IndicatorRelease(m_hFrac); }
+      if(m_hBands != INVALID_HANDLE) { IndicatorRelease(m_hBands); }
+      if(m_hADX != INVALID_HANDLE) { IndicatorRelease(m_hADX); }
+      if(m_hWMA_Half != INVALID_HANDLE) { IndicatorRelease(m_hWMA_Half); }
+      if(m_hWMA_Full != INVALID_HANDLE) { IndicatorRelease(m_hWMA_Full); }
+      
+      if(m_hHMA_Fast_Half != INVALID_HANDLE) { IndicatorRelease(m_hHMA_Fast_Half); }
+      if(m_hHMA_Fast_Full != INVALID_HANDLE) { IndicatorRelease(m_hHMA_Fast_Full); }
+      if(m_hHMA_Slow_Half != INVALID_HANDLE) { IndicatorRelease(m_hHMA_Slow_Half); }
+      if(m_hHMA_Slow_Full != INVALID_HANDLE) { IndicatorRelease(m_hHMA_Slow_Full); }
+   }
+
+   bool Init()
+   {
+      ReleaseHandles();
+      
+      m_hFrac    = iFractals(_Symbol, PERIOD_CURRENT);
+      m_hBands   = iBands(_Symbol, PERIOD_CURRENT, 20, 0, 2.0, PRICE_CLOSE);
+      m_hADX     = iADX(_Symbol, PERIOD_CURRENT, 14);
+      
+      // HMA Hazırlığı: HMA = WMA( 2*WMA(n/2) - WMA(n) ) , sqrt(n)
+      m_hmaPeriod = MainTrend_MA;
+      m_hWMA_Half = iMA(_Symbol, HigherTF, m_hmaPeriod / 2, 0, MODE_LWMA, PRICE_CLOSE);
+      m_hWMA_Full = iMA(_Symbol, HigherTF, m_hmaPeriod, 0, MODE_LWMA, PRICE_CLOSE);
+      
+      // HMA Cross Hazırlığı (Mod 2)
+      if(InpStrategyMode == STRATEGY_HMA_CROSS)
+      {
+         m_hHMA_Fast_Half = iMA(_Symbol, PERIOD_CURRENT, InpHMA_Fast / 2, 0, MODE_LWMA, PRICE_CLOSE);
+         m_hHMA_Fast_Full = iMA(_Symbol, PERIOD_CURRENT, InpHMA_Fast, 0, MODE_LWMA, PRICE_CLOSE);
+         m_hHMA_Slow_Half = iMA(_Symbol, PERIOD_CURRENT, InpHMA_Slow / 2, 0, MODE_LWMA, PRICE_CLOSE);
+         m_hHMA_Slow_Full = iMA(_Symbol, PERIOD_CURRENT, InpHMA_Slow, 0, MODE_LWMA, PRICE_CLOSE);
+      }
+      
+      bool allValid = (m_hFrac != INVALID_HANDLE) && 
+                      (m_hBands != INVALID_HANDLE) && 
+                      (m_hADX != INVALID_HANDLE) && 
+                      (m_hWMA_Half != INVALID_HANDLE) &&
+                      (m_hWMA_Full != INVALID_HANDLE);
+      
+      if(InpStrategyMode == STRATEGY_HMA_CROSS)
+      {
+         allValid &= (m_hHMA_Fast_Half != INVALID_HANDLE) &&
+                     (m_hHMA_Fast_Full != INVALID_HANDLE) &&
+                     (m_hHMA_Slow_Half != INVALID_HANDLE) &&
+                     (m_hHMA_Slow_Full != INVALID_HANDLE);
+      }
+      
+      if(!allValid)
+         Print("UYARI: Bazı indikatörler yüklenemedi!");
+      
+      return allValid;
+   }
+
+   ENUM_MARKET_REGIME GetRegime()
+   {
+      double upper[], lower[], adx[];
+      ArraySetAsSeries(upper, true); 
+      ArraySetAsSeries(lower, true); 
+      ArraySetAsSeries(adx, true);
+      
+      if(CopyBuffer(m_hBands, 1, 0, Regime_Lookback, upper) < Regime_Lookback) 
+         return REGIME_HIGH_VOLATILITY;
+      if(CopyBuffer(m_hBands, 2, 0, Regime_Lookback, lower) < Regime_Lookback) 
+         return REGIME_HIGH_VOLATILITY;
+      if(CopyBuffer(m_hADX, 0, 0, 1, adx) < 1) 
+         return REGIME_HIGH_VOLATILITY;
+
+      double sumWidth = 0;
+      for(int i = 1; i < Regime_Lookback; i++) 
+         sumWidth += (upper[i] - lower[i]);
+      
+      double avgWidth = sumWidth / (double)(Regime_Lookback - 1);
+      double curWidth = upper[0] - lower[0];
+
+      if(avgWidth > 0 && curWidth > avgWidth * Vol_Explosion_Mul) 
+         return REGIME_HIGH_VOLATILITY;
+      
+      if(adx[0] > 25) 
+         return REGIME_TRENDING;
+      
+      return REGIME_RANGING;
+   }
+
+   // Genel HMA Hesaplayıcı (Parametrik)
+   double CalculateHMA_Generic(int period, int hHalf, int hFull, int shift)
+   {
+      int sqrtPeriod = (int)MathSqrt(period);
+      int lookback = sqrtPeriod + 1;
+      
+      double wmaHalf[], wmaFull[];
+      ArraySetAsSeries(wmaHalf, true);
+      ArraySetAsSeries(wmaFull, true);
+      
+      if(CopyBuffer(hHalf, 0, shift, lookback, wmaHalf) < lookback) return 0;
+      if(CopyBuffer(hFull, 0, shift, lookback, wmaFull) < lookback) return 0;
+      
+      double rawHMA[];
+      ArrayResize(rawHMA, lookback);
+      for(int i=0; i<lookback; i++)
+         rawHMA[i] = (2 * wmaHalf[i]) - wmaFull[i];
+      
+      double hmaVal = 0;
+      double weightSum = 0;
+      for(int i=0; i<sqrtPeriod; i++)
+      {
+         double weight = sqrtPeriod - i;
+         hmaVal += rawHMA[i] * weight;
+         weightSum += weight;
+      }
+      
+      if(weightSum > 0) return hmaVal / weightSum;
+      return 0;
+   }
+
+   // HMA Hesaplama Fonksiyonu (Trend Filtresi İçin)
+   double CalculateHMA(int shift)
+   {
+      return CalculateHMA_Generic(m_hmaPeriod, m_hWMA_Half, m_hWMA_Full, shift);
+   }
+   
+   // HMA Cross Sinyali (Mod 2)
+   int GetHMACrossSignal()
+   {
+      double fastHMA_Curr = CalculateHMA_Generic(InpHMA_Fast, m_hHMA_Fast_Half, m_hHMA_Fast_Full, 0);
+      double fastHMA_Prev = CalculateHMA_Generic(InpHMA_Fast, m_hHMA_Fast_Half, m_hHMA_Fast_Full, 1);
+      
+      double slowHMA_Curr = CalculateHMA_Generic(InpHMA_Slow, m_hHMA_Slow_Half, m_hHMA_Slow_Full, 0);
+      double slowHMA_Prev = CalculateHMA_Generic(InpHMA_Slow, m_hHMA_Slow_Half, m_hHMA_Slow_Full, 1);
+      
+      if(fastHMA_Curr == 0 || slowHMA_Curr == 0) return 0;
+      
+      // Golden Cross (Yukarı Kesişim)
+      if(fastHMA_Prev < slowHMA_Prev && fastHMA_Curr > slowHMA_Curr)
+      {
+         g_StateReason = "HMA CROSS (AL)";
+         return 1;
+      }
+      
+      // Death Cross (Aşağı Kesişim)
+      if(fastHMA_Prev > slowHMA_Prev && fastHMA_Curr < slowHMA_Curr)
+      {
+         g_StateReason = "HMA CROSS (SAT)";
+         return -1;
+      }
+      
+      return 0;
+   }
+
+   int GetDirection(ENUM_MARKET_REGIME regime)
+   {
+      // Mod 2: HMA Cross
+      if(InpStrategyMode == STRATEGY_HMA_CROSS)
+      {
+         return GetHMACrossSignal();
+      }
+      
+      // Mod 1: Fractal Reversal (Mevcut Strateji)
+      if(regime == REGIME_HIGH_VOLATILITY) 
+      {
+         g_StateReason = "YÜKSEK VOLATİLİTE (BEKLE)";
+         return 0;
+      }
+
+      double up[], down[];
+      if(CopyBuffer(m_hFrac, 0, 0, 5, up) < 5 || 
+         CopyBuffer(m_hFrac, 1, 0, 5, down) < 5) 
+         return 0;
+
+      bool isDip = (down[2] != 0.0 && down[2] != EMPTY_VALUE);
+      bool isTop = (up[2] != 0.0 && up[2] != EMPTY_VALUE);
+      
+      datetime barTime = iTime(_Symbol, PERIOD_CURRENT, 2);
+      if(barTime <= m_lastSignalTime) 
+      {
+         g_StateReason = "SİNYAL BEKLENİYOR (FRACTAL)";
+         return 0;
+      }
+
+      // Trend Filtresi Değişkenleri
+      double bufMA[], bufClose[];
+      ArraySetAsSeries(bufMA, true); 
+      ArraySetAsSeries(bufClose, true);
+      double maVal = 0;
+      double price = 0;
+      string trendLog = "";
+      bool trendFilterPass = true;
+
+      // Trend Filtresi (MTF)
+      if(regime == REGIME_TRENDING)
+      {
+         if(CopyClose(_Symbol, HigherTF, 0, 1, bufClose) == 1)
+         {
+            maVal = CalculateHMA(0); // HMA Kullan
+            price = bufClose[0];
+            
+            if(maVal != 0)
+            {
+               trendLog = "   • Trend Filtresi (HMA): Fiyat(" + DoubleToString(price, 5) + ") " + (price > maVal ? ">" : "<") + " HMA(" + DoubleToString(maVal, 5) + ") -> " + (price > maVal ? "YUKARI" : "AŞAĞI");
+
+               if(isDip && price < maVal) 
+               {
+                  g_StateReason = "TREND FİLTRESİ (FİYAT < HMA)";
+                  trendFilterPass = false;
+               }
+               if(isTop && price > maVal) 
+               {
+                  g_StateReason = "TREND FİLTRESİ (FİYAT > HMA)";
+                  trendFilterPass = false;
+               }
+            }
+         }
+      }
+
+      // --- SİNYAL LOGLAMA ---
+      string sigLog = "📡 SİNYAL ANALİZİ (" + EnumToString(regime) + "):\n";
+      sigLog += "   • Fractal Dip : " + (isDip ? "VAR" : "YOK") + "\n";
+      sigLog += "   • Fractal Tepe: " + (isTop ? "VAR" : "YOK") + "\n";
+      
+      if(regime == REGIME_TRENDING)
+      {
+         sigLog += trendLog;
+      }
+      
+      if(isDip || isTop) Print(sigLog);
+      
+      if(!trendFilterPass) return 0;
+
+      if(isDip) 
+      { 
+         m_lastSignalTime = barTime; 
+         g_StateReason = "🟢 ALIŞ SİNYALİ";
+         return 1; 
+      }
+      if(isTop) 
+      { 
+         m_lastSignalTime = barTime; 
+         g_StateReason = "🔴 SATIŞ SİNYALİ";
+         return -1; 
+      }
+      
+      g_StateReason = "🔎 SİNYAL ARANIYOR";
+      return 0;
+   }
+   
+   // Manuel İşlem Kontrolü İçin Trend Yönü
+   int GetTrendDirection()
+   {
+      double hmaVal = CalculateHMA(0);
+      double closePrice = iClose(_Symbol, HigherTF, 0);
+      
+      if(hmaVal == 0) return 0;
+         
+      if(closePrice > hmaVal) return 1; // Trend Yukarı
+      if(closePrice < hmaVal) return -1; // Trend Aşağı
+      return 0;
+   }
+};
+
+//====================================================================
+// CLASS: GRID EXECUTOR
+//====================================================================
+class CGridExecutor
+{
+private:
+   CTrade m_trade;
+
+public:
+   void Init() 
+   { 
+      m_trade.SetExpertMagicNumber(InpMagic);
+      
+      // --- OTOMATIK FILLING MODE (v26) ---
+      if(!m_trade.SetTypeFillingBySymbol(_Symbol))
+      {
+         // Fallback: Broker desteklemiyorsa FOK kullan
+         m_trade.SetTypeFilling(ORDER_FILLING_FOK);
+         Print("⚠️ v26: Otomatik Filling Mode ayarlanamadı, FOK kullanılıyor.");
+      }
+      else
+      {
+         Print("✅ v26: Otomatik Filling Mode başarıyla ayarlandı.");
+      }
+      
+      m_trade.SetDeviationInPoints(10);
+   }
+
+   int CalculateSafeOrderCount(int direction)
+   {
+      // --- DİNAMİK LOT (ATR BAZLI) ---
+      double lotToUse = InpFixedLot;
+      if(InpUseDynamicLot)
+      {
+         int hATR = iATR(_Symbol, PERIOD_CURRENT, 14);
+         double atrVal[];
+         ArraySetAsSeries(atrVal, true);
+         if(CopyBuffer(hATR, 0, 0, 1, atrVal) == 1)
+         {
+            // ATR çok yüksekse lotu yarıya düşür
+            double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+            if(atrVal[0] > 0.0020) // Örnek eşik
+            {
+               lotToUse = InpFixedLot / 2.0;
+               double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+               if(lotToUse < minLot) lotToUse = minLot;
+            }
+         }
+         IndicatorRelease(hATR);
+      }
+      
+      ENUM_ORDER_TYPE type = (direction == 1) ? ORDER_TYPE_BUY_STOP : ORDER_TYPE_SELL_STOP;
+      double price = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      
+      double marginReq = 0;
+      if(!OrderCalcMargin(type, _Symbol, lotToUse, price, marginReq)) 
+         return 0;
+      
+      if(marginReq <= 0) 
+         return 0;
+      
+      double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+      int maxByMargin = (int)MathFloor(freeMargin / marginReq);
+      
+      // Risk bazlı limit hesabı
+      double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+      double dailyRisk = AccountInfoDouble(ACCOUNT_BALANCE) * (InpBaseRiskPercent / 100.0);
+      double remainingRisk = dailyRisk - MathMax(0, AccountInfoDouble(ACCOUNT_BALANCE) - equity);
+      
+      if(remainingRisk <= 0) 
+         return 0;
+
+      double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+      double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      
+      if(tickSize <= 0 || point <= 0) 
+         return 0;
+      
+      double pipValue = (tickValue / tickSize) * (10 * point);
+      double lossPerTrade = lotToUse * InpSL_Pips * pipValue;
+      
+      if(lossPerTrade <= 0) 
+         return 0;
+      
+      int maxByRisk = (int)MathFloor(remainingRisk / lossPerTrade);
+      
+      return MathMin(MathMin(maxByMargin, maxByRisk), InpMaxOrders);
+   }
+
+   void PlaceGrid(int direction)
+   {
+      if(PositionsTotal() > 0 || OrdersTotal() > 0) 
+         return;
+
+      int count = CalculateSafeOrderCount(direction);
+      if(count <= 0) 
+         return;
+
+      // --- DİNAMİK LOT TEKRAR HESAP ---
+      double lotToUse = InpFixedLot;
+      if(InpUseDynamicLot)
+      {
+         int hATR = iATR(_Symbol, PERIOD_CURRENT, 14);
+         double atrVal[];
+         ArraySetAsSeries(atrVal, true);
+         if(CopyBuffer(hATR, 0, 0, 1, atrVal) == 1)
+         {
+            if(atrVal[0] > 0.0020) 
+            {
+               lotToUse = InpFixedLot / 2.0;
+               double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+               if(lotToUse < minLot) lotToUse = minLot;
+            }
+         }
+         IndicatorRelease(hATR);
+      }
+      
+      double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+      int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+      double basePrice = (direction == 1) ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      
+      if(StressTest_Mode)
+      {
+         double slip = Simulated_Slippage * point;
+         basePrice += (direction == 1) ? slip : -slip;
+      }
+
+      datetime expiration = TimeCurrent() + (InpExpirationHrs * 3600);
+      double stepSize = CPriceEngine::PipToPoints(InpStepPips);
+      double slSize   = CPriceEngine::PipToPoints(InpSL_Pips);
+      double tpSize   = CPriceEngine::PipToPoints(InpTP_Pips);
+
+      for(int i = 0; i < count; i++)
+      {
+         double entry = 0, sl = 0, tp = 0;
+         
+         if(direction == 1) // BUY
+         {
+            entry = basePrice + ((i + 1) * stepSize);
+            sl    = entry - slSize;
+            tp    = entry + tpSize;
+            
+            if(!CPriceEngine::CheckStopLevel(entry, sl, tp, 1)) 
+               continue;
+            
+            CPriceEngine::EnforceRequestInterval(); // Anti-Spam
+            
+            if(!m_trade.BuyStop(lotToUse, NormalizeDouble(entry, digits), _Symbol, 
+               NormalizeDouble(sl, digits), NormalizeDouble(tp, digits), 
+               ORDER_TIME_SPECIFIED, expiration, "OmegaBuy_" + IntegerToString(i)))
+            {
+               // --- DETAYLI HATA LOGLAMA (v26) ---
+               Print("❌ BuyStop Hatası [#", i, "]: ", m_trade.ResultRetcodeDescription());
+               
+               if(m_trade.ResultRetcode() == 10014) // TRADE_RETCODE_NO_MONEY
+               {
+                  Print("💰 Yetersiz bakiye nedeniyle grid sonlandırıldı.");
+                  break;
+               }
+            }
+            else
+            {
+               g_tradesTodayCount++; // İşlem sayacını artır
+               Print("✅ BuyStop [#", i, "] başarıyla açıldı. Fiyat: ", entry);
+            }
+         }
+         else // SELL
+         {
+            entry = basePrice - ((i + 1) * stepSize);
+            sl    = entry + slSize;
+            tp    = entry - tpSize;
+            
+            if(!CPriceEngine::CheckStopLevel(entry, sl, tp, -1)) 
+               continue;
+            
+            CPriceEngine::EnforceRequestInterval(); // Anti-Spam
+            
+            if(!m_trade.SellStop(lotToUse, NormalizeDouble(entry, digits), _Symbol, 
+               NormalizeDouble(sl, digits), NormalizeDouble(tp, digits), 
+               ORDER_TIME_SPECIFIED, expiration, "OmegaSell_" + IntegerToString(i)))
+            {
+               // --- DETAYLI HATA LOGLAMA (v26) ---
+               Print("❌ SellStop Hatası [#", i, "]: ", m_trade.ResultRetcodeDescription());
+               
+               if(m_trade.ResultRetcode() == 10014) // TRADE_RETCODE_NO_MONEY
+               {
+                  Print("💰 Yetersiz bakiye nedeniyle grid sonlandırıldı.");
+                  break;
+               }
+            }
+            else
+            {
+               g_tradesTodayCount++; // İşlem sayacını artır
+               Print("✅ SellStop [#", i, "] başarıyla açıldı. Fiyat: ", entry);
+            }
+         }
+      }
+   }
+
+   void CleanUp()
+   {
+      for(int i = OrdersTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = OrderGetTicket(i);
+         if(ticket > 0 && OrderGetInteger(ORDER_MAGIC) == InpMagic)
+            m_trade.OrderDelete(ticket);
+      }
+   }
+     
+   void EmergencyCloseAll()
+   {
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = PositionGetTicket(i);
+         if(ticket > 0 && PositionSelectByTicket(ticket))
+         {
+            bool myTrade = (PositionGetInteger(POSITION_MAGIC) == InpMagic);
+            if(myTrade || InpManageManual)
+               m_trade.PositionClose(ticket);
+         }
+      }
+      CleanUp();
+   }
+     
+   void ManagePositions()
+   {
+      ManageManualTrades(); // Manuel işlemleri kontrol et
+
+      if(!InpUseBreakeven && !InpUseSmartPartial) 
+         return;
+      
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = PositionGetTicket(i);
+         if(ticket == 0) continue;
+         
+         bool myTrade = (PositionGetInteger(POSITION_MAGIC) == InpMagic);
+         if(!myTrade && !InpManageManual) continue;
+         
+         if(PositionSelectByTicket(ticket))
+         {
+            double open = PositionGetDouble(POSITION_PRICE_OPEN);
+            double curr = PositionGetDouble(POSITION_PRICE_CURRENT);
+            double sl   = PositionGetDouble(POSITION_SL);
+            double tp   = PositionGetDouble(POSITION_TP);
+            long type   = PositionGetInteger(POSITION_TYPE);
+            double vol  = PositionGetDouble(POSITION_VOLUME);
+            double pt   = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+            
+            if(InpUseSmartPartial && tp != 0)
+            {
+               double profitDist = MathAbs(curr - open);
+               double targetDist = MathAbs(tp - open);
+               
+               if(targetDist > 0 && profitDist >= targetDist * 0.5)
+               {
+                  bool isBE = (MathAbs(sl - open) < (5 * pt));
+                  if(!isBE && vol > SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN))
+                  {
+                     double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+                     double closeVol = MathFloor((vol * 0.5) / lotStep) * lotStep;
+                     if(closeVol >= SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN))
+                        m_trade.PositionClosePartial(ticket, closeVol);
+                  }
+               }
+            }
+
+            if(InpUseBreakeven)
+            {
+               double beTrigger = CPriceEngine::PipToPoints(10);
+               double extraPips = CPriceEngine::PipToPoints(2);
+
+               if(type == POSITION_TYPE_BUY && curr > open + beTrigger)
+               {
+                  if(sl < open || sl == 0)
+                     m_trade.PositionModify(ticket, open + extraPips, tp);
+               }
+               else if(type == POSITION_TYPE_SELL && curr < open - beTrigger)
+               {
+                  if(sl > open || sl == 0)
+                     m_trade.PositionModify(ticket, open - extraPips, tp);
+               }
+            }
+            
+            // --- TRAILING STOP (İZLEYEN STOP) ---
+            if(InpUseTrailing)
+            {
+               double trailStart = CPriceEngine::PipToPoints(InpTrailingStart);
+               double trailStep  = CPriceEngine::PipToPoints(InpTrailingStep);
+               
+               if(type == POSITION_TYPE_BUY)
+               {
+                  if(curr - open > trailStart) // Kâr başlangıç seviyesini geçtiyse
+                  {
+                     double newSL = curr - trailStart;
+                     if(newSL > sl + trailStep) // Sadece yukarı taşı
+                     {
+                        m_trade.PositionModify(ticket, newSL, tp);
+                     }
+                  }
+               }
+               else if(type == POSITION_TYPE_SELL)
+               {
+                  if(open - curr > trailStart) // Kâr başlangıç seviyesini geçtiyse
+                  {
+                     double newSL = curr + trailStart;
+                     if(sl == 0 || newSL < sl - trailStep) // Sadece aşağı taşı
+                     {
+                        m_trade.PositionModify(ticket, newSL, tp);
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+   
+   void ManageManualTrades()
+   {
+      int trend = Signal.GetTrendDirection();
+      
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+      {
+         ulong ticket = PositionGetTicket(i);
+         if(ticket == 0) continue;
+         
+         // Sadece Manuel İşlemler (Magic = 0)
+         if(PositionGetInteger(POSITION_MAGIC) != 0) continue;
+         
+         if(PositionSelectByTicket(ticket))
+         {
+            long type = PositionGetInteger(POSITION_TYPE);
+            
+            // 1. Ters Yön Kontrolü
+            if(trend == 1 && type == POSITION_TYPE_SELL) // Trend Yukarı ama Satış açılmış
+            {
+               Print("UYARI: Trend tersine açılan manuel işlem kapatılıyor! Ticket: ", ticket);
+               m_trade.PositionClose(ticket);
+               continue;
+            }
+            if(trend == -1 && type == POSITION_TYPE_BUY) // Trend Aşağı ama Alış açılmış
+            {
+               Print("UYARI: Trend tersine açılan manuel işlem kapatılıyor! Ticket: ", ticket);
+               m_trade.PositionClose(ticket);
+               continue;
+            }
+            
+            // 2. SL/TP Ekleme
+            double sl = PositionGetDouble(POSITION_SL);
+            double tp = PositionGetDouble(POSITION_TP);
+            double open = PositionGetDouble(POSITION_PRICE_OPEN);
+            double pt = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+            int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+            
+            bool modified = false;
+            double newSL = sl;
+            double newTP = tp;
+            
+            double slDist = CPriceEngine::PipToPoints(InpSL_Pips);
+            double tpDist = CPriceEngine::PipToPoints(InpTP_Pips);
+            
+            if(sl == 0)
+            {
+               newSL = (type == POSITION_TYPE_BUY) ? open - slDist : open + slDist;
+               modified = true;
+            }
+            
+            if(tp == 0)
+            {
+               newTP = (type == POSITION_TYPE_BUY) ? open + tpDist : open - tpDist;
+               modified = true;
+            }
+            
+            if(modified)
+            {
+               if(CPriceEngine::CheckStopLevel(open, newSL, newTP, (type == POSITION_TYPE_BUY ? 1 : -1)))
+               {
+                  m_trade.PositionModify(ticket, NormalizeDouble(newSL, digits), NormalizeDouble(newTP, digits));
+                  Print("Manuel işleme SL/TP eklendi. Ticket: ", ticket);
+               }
+            }
+         }
+      }
+   }
+};
+
+//====================================================================
+// GLOBAL OBJECTS
+//====================================================================
+CNewsManager     News;
+CSecurityManager Security;
+CSignalEngine    Signal;
+CGridExecutor    Executor;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // --- SIKI BAŞLANGIÇ KONTROLLERİ (v24) ---
+   if(InpStrictInitChecks)
+   {
+      if(SymbolInfoDouble(_Symbol, SYMBOL_POINT) <= 0) { Print("⛔ HATA: Point değeri geçersiz!"); return INIT_FAILED; }
+      if(SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE) <= 0) { Print("⛔ HATA: Tick Value geçersiz!"); return INIT_FAILED; }
+      if(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP) <= 0) { Print("⛔ HATA: Volume Step geçersiz!"); return INIT_FAILED; }
+      Print("✅ Sıkı Başlangıç Kontrolleri: BAŞARILI");
+   }
+
+   if(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_MODE) != SYMBOL_TRADE_MODE_FULL)
+   {
+      Alert("HATA: Bu sembolde işlem izni yok!");
+      return INIT_FAILED;
+   }
+   
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   if(InpFixedLot < minLot || InpFixedLot > maxLot)
+   {
+      Alert("HATA: Lot boyutu uygun değil! Min: ", minLot, " Max: ", maxLot);
+      return INIT_FAILED;
+   }
+   
+   Security.Init();
+   if(!Signal.Init()) return INIT_FAILED;
+   Executor.Init();
+   
+   // Günlük sayaç sıfırlama
+   g_today_start = iTime(_Symbol, PERIOD_D1, 0);
+   g_tradesTodayCount = 0;
+   
+   Print("TITANIUM OMEGA v25.0 Başlatıldı. Bakiye: ", AccountInfoDouble(ACCOUNT_BALANCE));
+   return INIT_SUCCEEDED;
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   Signal.ReleaseHandles();
+   Executor.CleanUp();
+   Comment("");
+}
+
+// Yeni Gün Kontrolü
+void CheckNewDay()
+{
+   datetime current_day = iTime(_Symbol, PERIOD_D1, 0);
+   if(g_today_start != current_day)
+   {
+      g_today_start = current_day;
+      g_tradesTodayCount = 0;
+      Print("📅 YENİ GÜN: İşlem sayacı sıfırlandı.");
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   CheckNewDay();
+
+   // Güvenlik Kontrolü (Sadece yeni işlem açmayı engeller, mevcutları yönetmeye devam eder)
+   bool safeToOpen = Security.IsSafeToTrade();
+   
+   // Günlük İşlem Limiti Kontrolü (v24)
+   if(InpMaxTradesPerDay > 0 && g_tradesTodayCount >= InpMaxTradesPerDay)
+   {
+      safeToOpen = false;
+      g_StateReason = "GÜNLÜK İŞLEM LİMİTİ (" + IntegerToString(g_tradesTodayCount) + "/" + IntegerToString(InpMaxTradesPerDay) + ")";
+   }
+   
+   // Performans Kontrolü (ML)
+   if(safeToOpen && !Security.CheckPerformance()) safeToOpen = false;
+   
+   // Haber Filtresi
+   if(safeToOpen && News.IsNewsTime()) safeToOpen = false;
+   
+   // Pozisyon Yönetimi (Manuel + Otomatik)
+   Executor.ManagePositions();
+   
+   // Yeni İşlem Sinyali
+   if(safeToOpen && PositionsTotal() == 0 && OrdersTotal() == 0)
+   {
+      ENUM_MARKET_REGIME regime = Signal.GetRegime();
+      int signal = Signal.GetDirection(regime);
+      
+      if(signal != 0 && regime != REGIME_HIGH_VOLATILITY)
+         Executor.PlaceGrid(signal);
+   }
+   
+   // Dashboard (Her Zaman veya Ayara Göre Göster)
+   if(InpShowDashboard || InpForceShowDashboard)
+   {
+      string regimeText = "HESAPLANIYOR";
+      ENUM_MARKET_REGIME regime = Signal.GetRegime();
+      switch(regime)
+      {
+         case REGIME_HIGH_VOLATILITY: regimeText = "YUKSEK VOL."; break;
+         case REGIME_TRENDING: regimeText = "TREND"; break;
+         case REGIME_RANGING: regimeText = "YATAY"; break;
+      }
+      
+      string dash = "+------------------------------------+\n";
+      dash += "|   TITANIUM OMEGA v26.0             |\n";
+      dash += "+------------------------------------+\n";
+      dash += "| DURUM    : " + (safeToOpen ? "[AKTIF]   " : "[BEKLIYOR]") + "\n";
+      dash += "| MOD      : " + (InpStrategyMode == STRATEGY_FRACTAL_REVERSAL ? "FRACTAL" : "HMA CROSS") + "\n";
+      dash += "| NEDEN    : " + g_StateReason + "\n";
+      dash += "+------------------------------------+\n";
+      dash += "| PIYASA   : " + regimeText + "\n";
+      dash += "| GUNLUK P/L : " + DoubleToString(Security.GetDailyPL(), 2) + " " + AccountInfoString(ACCOUNT_CURRENCY) + "\n";
+      dash += "| MARJIN     : " + DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_LEVEL), 1) + "%\n";
+      dash += "+------------------------------------+\n";
+      dash += "| POS: " + IntegerToString(PositionsTotal()) + " | EMIRLER: " + IntegerToString(OrdersTotal()) + "\n";
+      dash += "+------------------------------------+";
+      
+      Comment(dash);
+   }
+   else
+   {
+      Comment(""); // Gizle
+   }
+}

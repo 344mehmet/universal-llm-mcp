@@ -1,0 +1,108 @@
+[
+    {
+        "id": "mql5_buy_basic",
+        "category": "kod",
+        "difficulty": 2,
+        "question": "MQL5'te 0.1 lot EURUSD al emri nasıl açılır? CTrade kullanarak yaz.",
+        "expectedAnswer": "m_trade.Buy(0.1, \"EURUSD\", 0, 0, 0, \"comment\"); veya SymbolInfoDouble ile Ask fiyatı alınarak m_trade.Buy(0.1, \"EURUSD\", ask, sl, tp, \"comment\");",
+        "hints": [
+            "CTrade sınıfı Buy() metodunu kullanır",
+            "price=0 olursa otomatik SYMBOL_ASK kullanılır"
+        ]
+    },
+    {
+        "id": "mql5_sl_tp_modify",
+        "category": "kod",
+        "difficulty": 3,
+        "question": "Açık bir pozisyonun SL ve TP değerlerini değiştirmek için hangi CTrade metodu kullanılır?",
+        "expectedAnswer": "m_trade.PositionModify(ticket, newSL, newTP); veya sembol ile m_trade.PositionModify(symbol, newSL, newTP);",
+        "hints": [
+            "PositionModify metodu kullanılır",
+            "Ticket veya sembol ile çalışır"
+        ]
+    },
+    {
+        "id": "mql5_result_check",
+        "category": "kod",
+        "difficulty": 2,
+        "question": "CTrade ile işlem açtıktan sonra başarı kontrolü nasıl yapılır?",
+        "expectedAnswer": "if(m_trade.ResultRetcode() == TRADE_RETCODE_DONE) başarılı. Ticket: m_trade.ResultOrder(), Fiyat: m_trade.ResultPrice()",
+        "hints": [
+            "ResultRetcode() 10009 (TRADE_RETCODE_DONE) ise başarılı"
+        ]
+    },
+    {
+        "id": "mql5_pending_order",
+        "category": "kod",
+        "difficulty": 3,
+        "question": "BuyLimit ve BuyStop arasındaki fark nedir? Ne zaman hangisi kullanılır?",
+        "expectedAnswer": "BuyLimit: Mevcut fiyatın ALTINDA bekler (düşüşte al). BuyStop: Mevcut fiyatın ÜSTÜNDE bekler (yükselişte al, breakout).",
+        "hints": [
+            "Limit = geri çekilmede al",
+            "Stop = kırılımda al"
+        ]
+    },
+    {
+        "id": "mql5_position_close",
+        "category": "kod",
+        "difficulty": 2,
+        "question": "Ticket numarası bilinen bir pozisyonu kapatmak için kod yaz.",
+        "expectedAnswer": "m_trade.PositionClose(ticket);",
+        "hints": [
+            "PositionClose ticket veya sembol alabilir"
+        ]
+    },
+    {
+        "id": "mql5_partial_close",
+        "category": "kod",
+        "difficulty": 4,
+        "question": "Bir pozisyonun %50'sini kapatmak için kod yaz (hedging modunda).",
+        "expectedAnswer": "double closeVol = PositionGetDouble(POSITION_VOLUME) * 0.5; m_trade.PositionClosePartial(ticket, closeVol);",
+        "hints": [
+            "PositionClosePartial sadece hedging modunda çalışır",
+            "Mevcut hacmi al ve yarısını kapat"
+        ]
+    },
+    {
+        "id": "mql5_magic_number",
+        "category": "kod",
+        "difficulty": 1,
+        "question": "EA'nın kendi işlemlerini tanıması için ne kullanılır ve nasıl ayarlanır?",
+        "expectedAnswer": "Magic Number kullanılır. m_trade.SetExpertMagicNumber(123456); ile ayarlanır.",
+        "hints": [
+            "Her EA benzersiz magic number kullanmalı"
+        ]
+    },
+    {
+        "id": "mql5_retcode_error",
+        "category": "kod",
+        "difficulty": 3,
+        "question": "TRADE_RETCODE_INVALID_STOPS hatası ne anlama gelir ve nasıl çözülür?",
+        "expectedAnswer": "SL veya TP değerleri geçersiz (çok yakın veya yanlış tarafta). Çözüm: SYMBOL_TRADE_STOPS_LEVEL kontrolü yap, NormalizeDouble kullan, SL/TP yönünü kontrol et.",
+        "hints": [
+            "StopLevel broker minimum mesafesidir",
+            "BUY için SL < entry, TP > entry olmalı"
+        ]
+    },
+    {
+        "id": "mql5_order_filling",
+        "category": "kod",
+        "difficulty": 3,
+        "question": "ORDER_FILLING_FOK, ORDER_FILLING_IOC ve ORDER_FILLING_RETURN arasındaki farklar nelerdir?",
+        "expectedAnswer": "FOK: Ya tamamen doldur ya iptal et. IOC: Mümkün olanı doldur, kalanı iptal. RETURN: Mümkün olanı doldur, kalan bekleyen emir olarak kalır.",
+        "hints": [
+            "Broker ve sembol desteğine göre değişir",
+            "SetTypeFilling ile ayarlanır"
+        ]
+    },
+    {
+        "id": "mql5_hedging_netting",
+        "category": "analiz",
+        "difficulty": 4,
+        "question": "Hedging ve Netting hesap modu arasındaki fark nedir? EA'da nasıl kontrol edilir?",
+        "expectedAnswer": "Hedging: Aynı sembole birden fazla pozisyon açılabilir. Netting: Tek pozisyon, yeni işlemler netleşir. Kontrol: (ENUM_ACCOUNT_MARGIN_MODE)AccountInfoInteger(ACCOUNT_MARGIN_MODE) == ACCOUNT_MARGIN_MODE_RETAIL_HEDGING",
+        "hints": [
+            "PositionClosePartial ve PositionCloseBy sadece hedging'de çalışır"
+        ]
+    }
+]
