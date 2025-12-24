@@ -136,7 +136,7 @@ class SystemTrayLauncher {
      * Sunucu durumu
      */
     public isRunning(): boolean {
-        return this.server.isActive();
+        return this.server.isActive;
     }
 
     /**

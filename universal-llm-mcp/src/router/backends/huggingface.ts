@@ -1,0 +1,54 @@
+/**
+ * Universal LLM MCP - Hugging Face Backend
+ */
+
+import { BaseLLMBackend, CompletionRequest, CompletionResponse } from './base.js';
+
+export class HuggingFaceBackend extends BaseLLMBackend {
+    private apiKey: string;
+
+    constructor(apiKey?: string, model?: string) {
+        super(
+            'huggingface',
+            'https://api-inference.huggingface.co/v1',
+            model || 'meta-llama/Llama-3.3-70B-Instruct',
+            120000
+        );
+        this.apiKey = apiKey || process.env.HF_API_KEY || '';
+    }
+
+    async complete(request: CompletionRequest): Promise<CompletionResponse> {
+        const model = request.model || this.defaultModel;
+
+        const body = {
+            model,
+            messages: request.messages.map(m => ({
+                role: m.role,
+                content: m.content,
+            })),
+            temperature: request.temperature ?? 0.7,
+            max_tokens: request.maxTokens ?? 4096,
+            stream: false,
+        };
+
+        const response = await this.httpRequest<any>('/chat/completions', 'POST', body, {
+            'Authorization': `Bearer ${this.apiKey}`,
+        });
+
+        return {
+            content: response.choices[0]?.message?.content || '',
+            model: response.model,
+            tokensUsed: response.usage?.total_tokens,
+            finishReason: response.choices[0]?.finish_reason,
+        };
+    }
+
+    async listModels(): Promise<string[]> {
+        return [
+            'meta-llama/Llama-3.3-70B-Instruct',
+            'mistralai/Mistral-7B-Instruct-v0.3',
+            'google/gemma-2-9b-it',
+            'microsoft/Phi-3-mini-4k-instruct'
+        ];
+    }
+}

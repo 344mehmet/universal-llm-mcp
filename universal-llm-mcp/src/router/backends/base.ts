@@ -96,6 +96,17 @@ export abstract class BaseLLMBackend {
     abstract complete(request: CompletionRequest): Promise<CompletionResponse>;
 
     /**
+     * Vision destekli completion (görsel + metin)
+     */
+    async completeWithVision(
+        messages: ChatMessage[],
+        imageUrl: string,
+        model?: string
+    ): Promise<CompletionResponse> {
+        throw new Error(`[${this.name}] Vision desteği bulunmuyor.`);
+    }
+
+    /**
      * HTTP isteği gönder (yardımcı metod)
      */
     protected async httpRequest<T>(

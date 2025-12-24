@@ -1,0 +1,48 @@
+openapi: 3.0.0
+info:
+  title: Universal LLM Platform API
+  description: Enterprise AI Gateway & MCP Server API Documentation
+  version: 1.2.0
+servers:
+  - url: http://localhost:3355
+    description: Local Server
+paths:
+  /api/chat:
+    post:
+      summary: Send a message to the LLM Gateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                sessionId:
+                  type: string
+      responses:
+        "200":
+          description: Successful response
+  /api/terminal/run:
+    post:
+      summary: Execute terminal command
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+      responses:
+        "200":
+          description: Command execution result
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -85,11 +85,57 @@ export class GitHubIssueSolver {
     }
 
     /**
+     * Depo içeriğini oku (Bağlam için)
+     */
+    async getRepositoryContext(repo: string, path: string = ''): Promise<string> {
+        try {
+            const { data } = await this.octokit.repos.getContent({
+                owner: this.config.owner,
+                repo,
+                path,
+            });
+
+            if (Array.isArray(data)) {
+                return data.map(item => `${item.type === 'dir' ? '[DIR]' : '[FILE]'} ${item.path}`).join('\n');
+            }
+            return '';
+        } catch (error) {
+            console.error(`[GitHubIssueSolver] Bağlam okuma hatası:`, error);
+            return 'Bağlam alınamadı';
+        }
+    }
+
+    /**
+     * Dosya içeriğini oku
+     */
+    async readFile(repo: string, path: string): Promise<string> {
+        try {
+            const { data } = await this.octokit.repos.getContent({
+                owner: this.config.owner,
+                repo,
+                path,
+            });
+            if ('content' in data && typeof data.content === 'string') {
+                return Buffer.from(data.content, 'base64').toString('utf-8');
+            }
+            return '';
+        } catch {
+            return '';
+        }
+    }
+
+    /**
      * Issue'yu analiz et ve çözüm öner
      */
     async analyzeIssue(issue: Issue, llmClient: any): Promise<Solution> {
+        // İlgili dosyaları bulmaya çalış (basit bir tarama)
+        const repoStructure = await this.getRepositoryContext(issue.repo);
+
         const prompt = `
 Sen deneyimli bir yazılım geliştiricisisin. Aşağıdaki GitHub issue'yu analiz et ve çözüm öner:
+
+## Repo Yapısı
+${repoStructure}
 
 ## Issue Başlığı
 ${issue.title}
@@ -97,15 +143,10 @@ ${issue.title}
 ## Issue Açıklaması
 ${issue.body}
 
-## Etiketler
-${issue.labels.join(', ') || 'Yok'}
-
 ## Görevler:
-1. Sorunu detaylı analiz et
-2. Kök nedeni belirle
-3. Çözüm öner (kod değişiklikleri dahil)
-4. Tahmini çözüm süresini belirt
-5. Güven seviyeni %0-100 arası belirt
+1. Sorunu analiz et ve kök nedeni belirle.
+2. Mevcut repo yapısına bakarak en olası dosyaları seç ve çözüm öner.
+3. Çözüm süresini ve güven puanını belirt.
 
 JSON formatında yanıt ver:
 {

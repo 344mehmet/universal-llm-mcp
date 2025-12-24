@@ -16,6 +16,8 @@ import { registerTranslateTools } from './tools/translate-tool.js';
 import { registerFileTools } from './tools/file-tool.js';
 import { registerRAGTools } from './tools/rag-tool.js';
 import { registerTrainingTools } from './tools/training-tool.js';
+import { registerGitHubTools } from './tools/github-tool.js';
+import { registerDBTools } from './tools/db-tool.js';
 
 /**
  * Ana sunucu sınıfı
@@ -27,7 +29,7 @@ export class UniversalLLMServer {
     constructor() {
         this.server = new McpServer({
             name: 'universal-llm-mcp',
-            version: '1.0.0',
+            version: '1.2.0',
         });
 
         this.registerAllTools();
@@ -70,6 +72,11 @@ export class UniversalLLMServer {
             registerTrainingTools(this.server);
             console.log('[Sunucu] ✓ Eğitim araçları yüklendi');
         }
+
+        // GitHub ve Enterprise DB Araçları
+        registerGitHubTools(this.server);
+        registerDBTools(this.server);
+        console.log('[Sunucu] ✓ Kurumsal araçlar yüklendi (GitHub & DB)');
 
         // Sistem araçları (her zaman aktif)
         this.registerSystemTools();
@@ -171,6 +178,36 @@ export class UniversalLLMServer {
                 });
 
                 return { content: [{ type: 'text', text: sonuc }] };
+            }
+        );
+
+        // Observability: Metrikler (Prometheus uyumlu)
+        this.server.tool(
+            'metrikleri_goster',
+            'Sistem metriklerini (İstek sayısı, hata oranı, kaynak kullanımı) göster',
+            {},
+            async () => {
+                const uptime = process.uptime();
+                const memoryUsage = process.memoryUsage();
+
+                let metrics = '# HELP platform_uptime_seconds Sunucu çalışma süresi\n';
+                metrics += `# TYPE platform_uptime_seconds counter\n`;
+                metrics += `platform_uptime_seconds ${uptime}\n\n`;
+
+                metrics += '# HELP platform_memory_heap_bytes Bellek kullanımı (Heap)\n';
+                metrics += `# TYPE platform_memory_heap_bytes gauge\n`;
+                metrics += `platform_memory_heap_bytes ${memoryUsage.heapUsed}\n\n`;
+
+                metrics += '# HELP platform_memory_rss_bytes Bellek kullanımı (RSS)\n';
+                metrics += `# TYPE platform_memory_rss_bytes gauge\n`;
+                metrics += `platform_memory_rss_bytes ${memoryUsage.rss}\n`;
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `## Sistem Metrikleri (Observability)\n\n\`\`\`prometheus\n${metrics}\`\`\``
+                    }]
+                };
             }
         );
     }

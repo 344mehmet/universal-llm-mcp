@@ -29,7 +29,9 @@ export async function queryAllLLMs(question: string, systemPrompt?: string): Pro
     const backends = [
         'lmstudio', 'ollama', 'gemini', 'groq',
         'openai', 'anthropic', 'mistral', 'deepseek',
-        'openrouter', 'together', 'cohere'
+        'openrouter', 'together', 'cohere', 'huggingface',
+        'nvidia', 'scaleway', 'xai', 'fireworks',
+        'sambanova', 'novita', 'hyperbolic', 'ai21'
     ];
     const startTime = Date.now();
     const responses: MultiLLMResponse[] = [];

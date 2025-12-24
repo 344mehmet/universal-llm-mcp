@@ -17,6 +17,15 @@ import { DeepSeekBackend } from './backends/deepseek.js';
 import { OpenRouterBackend } from './backends/openrouter.js';
 import { TogetherBackend } from './backends/together.js';
 import { CohereBackend } from './backends/cohere.js';
+import { HuggingFaceBackend } from './backends/huggingface.js';
+import { NvidiaBackend } from './backends/nvidia.js';
+import { ScalewayBackend } from './backends/scaleway.js';
+import { XAIBackend } from './backends/xai.js';
+import { FireworksBackend } from './backends/fireworks.js';
+import { SambaNovaBackend } from './backends/sambanova.js';
+import { NovitaBackend } from './backends/novita.js';
+import { HyperbolicBackend } from './backends/hyperbolic.js';
+import { AI21Backend } from './backends/ai21.js';
 
 // Görev tipleri
 export type TaskType = 'code' | 'chat' | 'translate' | 'file' | 'reasoning' | 'research' | 'creative' | 'rag' | 'default';
@@ -81,6 +90,24 @@ export class LLMRouter {
                 return new TogetherBackend(config.apiKey);
             case 'cohere':
                 return new CohereBackend(config.apiKey);
+            case 'huggingface':
+                return new HuggingFaceBackend(config.apiKey, config.defaultModel);
+            case 'nvidia':
+                return new NvidiaBackend(config.apiKey, config.defaultModel);
+            case 'scaleway':
+                return new ScalewayBackend(config.apiKey, config.defaultModel);
+            case 'xai':
+                return new XAIBackend(config.apiKey, config.defaultModel);
+            case 'fireworks':
+                return new FireworksBackend(config.apiKey, config.defaultModel);
+            case 'sambanova':
+                return new SambaNovaBackend(config.apiKey, config.defaultModel);
+            case 'novita':
+                return new NovitaBackend(config.apiKey, config.defaultModel);
+            case 'hyperbolic':
+                return new HyperbolicBackend(config.apiKey, config.defaultModel);
+            case 'ai21':
+                return new AI21Backend(config.apiKey, config.defaultModel);
             default:
                 console.warn(`[Router] Bilinmeyen backend: ${name}`);
                 return null;
@@ -206,7 +233,7 @@ export class LLMRouter {
     }
 
     /**
-     * Belirli bir backend ile tamamlama
+     * Direkt istek
      */
     async completeWithBackend(
         backendName: string,
@@ -236,6 +263,41 @@ export class LLMRouter {
 
         console.log(`[Router] Direkt istek: ${backendName}`);
         return backend.complete(request);
+    }
+
+    /**
+     * Vision desteklicompletion (görsel analiz)
+     */
+    async completeWithVision(
+        mesaj: string,
+        imageUrl: string,
+        backendName?: string,
+        sistemPrompt?: string
+    ): Promise<CompletionResponse> {
+        // Belirli bir backend istenmişse onu kullan
+        if (backendName) {
+            const backend = this.backends.get(backendName);
+            if (backend && (backendName === 'openai' || backendName === 'gemini' || backendName === 'anthropic')) {
+                const messages: ChatMessage[] = [{ role: 'user', content: mesaj }];
+                if (sistemPrompt) messages.unshift({ role: 'system', content: sistemPrompt });
+                return backend.completeWithVision(messages, imageUrl);
+            }
+        }
+
+        // Otomatik seçim (Vision desteği olan ilk erişilebilir backend)
+        const visionBackends = ['gemini', 'anthropic', 'openai'];
+        for (const name of visionBackends) {
+            const backend = this.backends.get(name);
+            const status = this.backendStatus.get(name);
+            if (backend && status?.isAvailable) {
+                console.log(`[Router] Vision için ${name} seçildi`);
+                const messages: ChatMessage[] = [{ role: 'user', content: mesaj }];
+                if (sistemPrompt) messages.unshift({ role: 'system', content: sistemPrompt });
+                return backend.completeWithVision(messages, imageUrl);
+            }
+        }
+
+        throw new Error('[Router] Vision destekli erişilebilir backend bulunamadı!');
     }
 
     /**

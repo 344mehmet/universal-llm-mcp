@@ -1,8 +1,25 @@
 {
     "compilerOptions": {
         "target": "ES2022",
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
+        "module": "ESNext",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "src/*"
+            ]
+        },
+        "types": [
+            "@cloudflare/workers-types",
+            "node",
+            "next"
+        ],
+        "jsx": "preserve",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
         "outDir": "./dist",
         "rootDir": "./src",
         "strict": true,
@@ -11,10 +28,14 @@
         "forceConsistentCasingInFileNames": true,
         "declaration": true,
         "declarationMap": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "allowJs": true,
+        "resolveJsonModule": true,
+        "incremental": true
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "next-env.d.ts"
     ],
     "exclude": [
         "node_modules",

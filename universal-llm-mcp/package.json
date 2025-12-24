@@ -1,7 +1,7 @@
 {
   "name": "universal-llm-mcp",
-  "version": "1.1.0",
-  "description": "Yerel LLM'ler için evrensel MCP sunucusu + RAG - Türkçe destekli",
+  "version": "1.2.0",
+  "description": "Enterprise AI Development Platform - Next.js, Edge, Drizzle & 21+ LLM",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -10,26 +10,37 @@
     "dev": "tsx src/index.ts",
     "server": "node dist/start-server.js",
     "server:dev": "tsx src/start-server.ts",
-    "test:backends": "tsx src/test/backend-test.ts"
+    "test:backends": "tsx src/test/backend-test.ts",
+    "db:generate": "drizzle-kit generate:sqlite",
+    "db:push": "drizzle-kit push:sqlite",
+    "edge:dev": "wrangler dev src/edge/worker.ts"
   },
   "keywords": [
     "mcp",
     "llm",
-    "lmstudio",
-    "ollama",
-    "turkish",
-    "rag"
+    "rag",
+    "nextjs",
+    "drizzle",
+    "edge"
   ],
   "author": "Universal LLM",
   "license": "MIT",
   "dependencies": {
+    "@libsql/client": "^0.14.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@octokit/rest": "^22.0.1",
+    "@octokit/rest": "^21.0.0",
+    "drizzle-orm": "^0.33.0",
+    "next": "^15.0.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251224.0",
     "@types/node": "^20.10.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.24.0",
     "tsx": "^4.6.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "wrangler": "^3.0.0"
   }
 }

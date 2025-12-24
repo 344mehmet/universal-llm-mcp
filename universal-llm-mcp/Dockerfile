@@ -1,25 +1,33 @@
-# Universal LLM MCP - Dockerfile
-FROM node:20-alpine
-
-# Install pnpm
-RUN npm install -g pnpm
+# Build stage
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Dependencies
+# Corepack enable pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm run build
+
+# Runner stage
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+# Production dependencies only
+RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 
-# Source
-COPY dist ./dist
+COPY --from=builder /app/dist ./dist
 COPY config.json ./
-COPY certs ./certs
 
-# Create data directory
-RUN mkdir -p /app/data
+# Security: Non-root user
+USER node
 
-# Port
-EXPOSE 3002
+EXPOSE 3355
 
-# Start
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/start-server.js"]

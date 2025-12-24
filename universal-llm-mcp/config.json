@@ -73,6 +73,60 @@
             "apiKey": "",
             "defaultModel": "command-r-plus",
             "timeout": 60000
+        },
+        "huggingface": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "meta-llama/Llama-3.3-70B-Instruct",
+            "timeout": 60000
+        },
+        "nvidia": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "nvidia/llama-3.1-nemotron-70b-instruct",
+            "timeout": 60000
+        },
+        "scaleway": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "llama-3.1-70b-instruct",
+            "timeout": 60000
+        },
+        "xai": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "grok-beta",
+            "timeout": 60000
+        },
+        "fireworks": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "accounts/fireworks/models/llama-v3p1-70b-instruct",
+            "timeout": 60000
+        },
+        "sambanova": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "Meta-Llama-3.1-70B-Instruct",
+            "timeout": 60000
+        },
+        "novita": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "meta-llama/llama-3.1-70b-instruct",
+            "timeout": 60000
+        },
+        "hyperbolic": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "meta-llama/Llama-3-70B-Instruct",
+            "timeout": 60000
+        },
+        "ai21": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "j2-grande-chat",
+            "timeout": 60000
         }
     },
     "routing": {
@@ -84,7 +138,7 @@
         "creative": "anthropic",
         "rag": "anythingllm",
         "file": "lmstudio",
-        "default": "ollama"
+        "default": "lmstudio"
     },
     "language": {
         "default": "tr",
@@ -99,7 +153,9 @@
             "translate",
             "file",
             "rag",
-            "training"
+            "training",
+            "github",
+            "db"
         ]
     },
     "models": {
