@@ -23,6 +23,56 @@
             "apiKey": "",
             "defaultModel": "llama-3.3-70b-versatile",
             "timeout": 60000
+        },
+        "openai": {
+            "enabled": true,
+            "apiKey": "",
+            "url": "https://api.openai.com/v1",
+            "defaultModel": "gpt-4o-mini",
+            "timeout": 60000
+        },
+        "anthropic": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "claude-3-5-sonnet-20241022",
+            "timeout": 60000
+        },
+        "mistral": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "mistral-large-latest",
+            "timeout": 60000
+        },
+        "anythingllm": {
+            "enabled": false,
+            "url": "http://127.0.0.1:3001",
+            "apiKey": "",
+            "workspace": "default",
+            "timeout": 120000
+        },
+        "deepseek": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "deepseek-chat",
+            "timeout": 60000
+        },
+        "openrouter": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "google/gemini-2.0-flash-exp:free",
+            "timeout": 60000
+        },
+        "together": {
+            "enabled": false,
+            "apiKey": "",
+            "defaultModel": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "timeout": 60000
+        },
+        "cohere": {
+            "enabled": false,
+            "apiKey": "",
+            "defaultModel": "command-r-plus",
+            "timeout": 60000
         }
     },
     "routing": {
@@ -31,6 +81,8 @@
         "translate": "gemini",
         "reasoning": "groq",
         "research": "gemini",
+        "creative": "anthropic",
+        "rag": "anythingllm",
         "file": "lmstudio",
         "default": "ollama"
     },

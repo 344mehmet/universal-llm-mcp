@@ -9,9 +9,17 @@ import { LMStudioBackend } from './backends/lmstudio.js';
 import { OllamaBackend } from './backends/ollama.js';
 import { GeminiBackend } from './backends/gemini.js';
 import { GroqBackend } from './backends/groq.js';
+import { OpenAIBackend } from './backends/openai.js';
+import { AnthropicBackend } from './backends/anthropic.js';
+import { MistralBackend } from './backends/mistral.js';
+import { AnythingLLMBackend } from './backends/anythingllm.js';
+import { DeepSeekBackend } from './backends/deepseek.js';
+import { OpenRouterBackend } from './backends/openrouter.js';
+import { TogetherBackend } from './backends/together.js';
+import { CohereBackend } from './backends/cohere.js';
 
 // Görev tipleri
-export type TaskType = 'code' | 'chat' | 'translate' | 'file' | 'default';
+export type TaskType = 'code' | 'chat' | 'translate' | 'file' | 'reasoning' | 'research' | 'creative' | 'rag' | 'default';
 
 /**
  * LLM Router Sınıfı
@@ -57,6 +65,22 @@ export class LLMRouter {
                 return new GeminiBackend(config.apiKey);
             case 'groq':
                 return new GroqBackend(config.apiKey);
+            case 'openai':
+                return new OpenAIBackend(config.apiKey, config.url);
+            case 'anthropic':
+                return new AnthropicBackend(config.apiKey);
+            case 'mistral':
+                return new MistralBackend(config.apiKey);
+            case 'anythingllm':
+                return new AnythingLLMBackend(config.url, config.apiKey, config.workspace, config.timeout);
+            case 'deepseek':
+                return new DeepSeekBackend(config.apiKey);
+            case 'openrouter':
+                return new OpenRouterBackend(config.apiKey);
+            case 'together':
+                return new TogetherBackend(config.apiKey);
+            case 'cohere':
+                return new CohereBackend(config.apiKey);
             default:
                 console.warn(`[Router] Bilinmeyen backend: ${name}`);
                 return null;

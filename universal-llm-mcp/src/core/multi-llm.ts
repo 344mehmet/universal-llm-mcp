@@ -26,7 +26,11 @@ export interface MultiQueryResult {
  */
 export async function queryAllLLMs(question: string, systemPrompt?: string): Promise<MultiQueryResult> {
     const router = getRouter();
-    const backends = ['lmstudio', 'ollama', 'gemini', 'groq'];
+    const backends = [
+        'lmstudio', 'ollama', 'gemini', 'groq',
+        'openai', 'anthropic', 'mistral', 'deepseek',
+        'openrouter', 'together', 'cohere'
+    ];
     const startTime = Date.now();
     const responses: MultiLLMResponse[] = [];
 
