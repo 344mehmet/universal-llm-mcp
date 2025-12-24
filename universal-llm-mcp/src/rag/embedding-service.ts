@@ -69,8 +69,11 @@ export class EmbeddingService {
         for (const backend of this.backendPriority) {
             const backendConfig = config.getBackend(backend);
             if (backendConfig) {
+                const defaultUrl = backend === 'lmstudio'
+                    ? 'http://localhost:1234'
+                    : 'http://localhost:11434';
                 this.backendConfigs.set(backend, {
-                    url: backendConfig.url,
+                    url: backendConfig.url || defaultUrl,
                     model: backendConfig.defaultModel,
                     timeout: backendConfig.timeout,
                 });

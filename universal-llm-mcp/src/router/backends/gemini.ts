@@ -14,7 +14,7 @@ export class GeminiBackend extends BaseLLMBackend {
             'gemini-1.5-flash',
             120000
         );
-        this.apiKey = apiKey || process.env.GOOGLE_API_KEY || '';
+        this.apiKey = apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
     }
 
     async complete(request: CompletionRequest): Promise<CompletionResponse> {

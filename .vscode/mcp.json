@@ -1,0 +1,32 @@
+{
+    "servers": {
+        "universal-llm-mcp": {
+            "command": "node",
+            "args": [
+                "C:/Users/win11.2025/Desktop/antygravty google id/universal-llm-mcp/dist/index.js"
+            ],
+            "env": {
+                "GEMINI_API_KEY": "${env:GEMINI_API_KEY}",
+                "GROQ_API_KEY": "${env:GROQ_API_KEY}"
+            }
+        },
+        "ollama-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@anthropic-ai/mcp-server-ollama"
+            ],
+            "env": {
+                "OLLAMA_HOST": "http://127.0.0.1:11434"
+            }
+        },
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@anthropic-ai/mcp-server-filesystem",
+                "C:/Users/win11.2025/Desktop/antygravty google id"
+            ]
+        }
+    }
+}

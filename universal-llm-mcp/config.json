@@ -4,25 +4,41 @@
             "enabled": true,
             "url": "http://127.0.0.1:1234",
             "defaultModel": "auto",
-            "timeout": 120000
+            "timeout": 300000
         },
         "ollama": {
             "enabled": true,
             "url": "http://127.0.0.1:11434",
-            "defaultModel": "llama3",
-            "timeout": 120000
+            "defaultModel": "qwen3:8b",
+            "timeout": 300000
+        },
+        "gemini": {
+            "enabled": true,
+            "apiKey": "AIzaSyDiqmXwxpInPmRtI8ha7cTc0ID95YkLUXQ",
+            "defaultModel": "gemini-2.0-flash-exp",
+            "timeout": 60000
+        },
+        "groq": {
+            "enabled": true,
+            "apiKey": "",
+            "defaultModel": "llama-3.3-70b-versatile",
+            "timeout": 60000
         }
     },
     "routing": {
         "code": "lmstudio",
         "chat": "ollama",
-        "translate": "lmstudio",
+        "translate": "gemini",
+        "reasoning": "groq",
+        "research": "gemini",
         "file": "lmstudio",
         "default": "ollama"
     },
     "language": {
         "default": "tr",
-        "systemPrompt": "Sen Turkce dusunen ve Turkce yanit veren bir yapay zeka asistanisin."
+        "systemPrompt": "Sen Turkce dusunen ve Turkce yanit veren uzman bir yapay zeka asistanisin. Tum yanitlarini Turkce olarak ver. Kod yazarken degisken isimleri ve yorumlari Turkce yap. Detayli ve kapsamli yanitlar ver. Tum programlama dillerinde uzmansin: Python, JavaScript, TypeScript, Go, Java, C, C++, Rust, C#, Ruby, PHP.",
+        "ragPath": "docs/rag",
+        "crossTeaching": true
     },
     "tools": {
         "enabled": [
@@ -34,12 +50,43 @@
             "training"
         ]
     },
+    "models": {
+        "recommended": {
+            "16gb_vram": [
+                "qwen3:30b-q4_K_M",
+                "gemma3:27b-q4_K_M",
+                "mistral-small:24b-q4_K_L",
+                "llama3.1:8b-q4_K_M",
+                "qwen2.5-coder:14b-q4_K_M",
+                "deepseek-r1:8b"
+            ],
+            "embedding": [
+                "nomic-embed-text"
+            ]
+        },
+        "gemini": [
+            "gemini-3-pro-preview",
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+        ]
+    },
     "rag": {
         "enabled": true,
         "chunkSize": 500,
         "chunkOverlap": 50,
         "topK": 3,
         "embeddingBackend": "ollama"
+    },
+    "performance": {
+        "maxConcurrentRequests": 1,
+        "requestQueueSize": 5,
+        "memoryThresholdPercent": 85,
+        "autoGarbageCollection": true,
+        "modelUnloadTimeoutMs": 60000,
+        "streamingEnabled": true,
+        "maxTokensPerRequest": 2048,
+        "lowMemoryMode": true
     },
     "training": {
         "enabled": true,
@@ -51,5 +98,43 @@
             "dil",
             "analiz"
         ]
+    },
+    "auth": {
+        "enabled": true,
+        "ownerEmails": [
+            "344mehmet@gmail.com"
+        ],
+        "tiers": {
+            "owner": {
+                "dailyLimit": -1,
+                "models": [
+                    "all"
+                ],
+                "priceUSD": 0
+            },
+            "pro": {
+                "dailyLimit": 10000,
+                "models": [
+                    "all"
+                ],
+                "priceUSD": 20
+            },
+            "basic": {
+                "dailyLimit": 1000,
+                "models": [
+                    "ollama",
+                    "gemini",
+                    "groq"
+                ],
+                "priceUSD": 5
+            },
+            "free": {
+                "dailyLimit": 100,
+                "models": [
+                    "ollama"
+                ],
+                "priceUSD": 0
+            }
+        }
     }
 }

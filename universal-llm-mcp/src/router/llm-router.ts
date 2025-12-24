@@ -7,6 +7,8 @@ import { getConfigManager, type BackendConfig } from '../config.js';
 import { BaseLLMBackend, CompletionRequest, CompletionResponse, BackendStatus, ChatMessage } from './backends/base.js';
 import { LMStudioBackend } from './backends/lmstudio.js';
 import { OllamaBackend } from './backends/ollama.js';
+import { GeminiBackend } from './backends/gemini.js';
+import { GroqBackend } from './backends/groq.js';
 
 // Görev tipleri
 export type TaskType = 'code' | 'chat' | 'translate' | 'file' | 'default';
@@ -48,9 +50,13 @@ export class LLMRouter {
     private createBackend(name: string, config: BackendConfig): BaseLLMBackend | null {
         switch (name) {
             case 'lmstudio':
-                return new LMStudioBackend(config.url, config.defaultModel, config.timeout);
+                return new LMStudioBackend(config.url || 'http://localhost:1234', config.defaultModel, config.timeout);
             case 'ollama':
-                return new OllamaBackend(config.url, config.defaultModel, config.timeout);
+                return new OllamaBackend(config.url || 'http://localhost:11434', config.defaultModel, config.timeout);
+            case 'gemini':
+                return new GeminiBackend(config.apiKey);
+            case 'groq':
+                return new GroqBackend(config.apiKey);
             default:
                 console.warn(`[Router] Bilinmeyen backend: ${name}`);
                 return null;

@@ -1,0 +1,103 @@
+{
+    "models": [
+        {
+            "title": "Ollama - Qwen3 30B",
+            "provider": "ollama",
+            "model": "qwen3:30b-q4_K_M",
+            "apiBase": "http://127.0.0.1:11434"
+        },
+        {
+            "title": "Ollama - Gemma3 27B",
+            "provider": "ollama",
+            "model": "gemma3:27b-q4_K_M",
+            "apiBase": "http://127.0.0.1:11434"
+        },
+        {
+            "title": "Ollama - Llama 3.1 8B",
+            "provider": "ollama",
+            "model": "llama3.1:8b-q4_K_M",
+            "apiBase": "http://127.0.0.1:11434"
+        },
+        {
+            "title": "Ollama - Qwen2.5 Coder 14B",
+            "provider": "ollama",
+            "model": "qwen2.5-coder:14b-q4_K_M",
+            "apiBase": "http://127.0.0.1:11434"
+        },
+        {
+            "title": "LM Studio",
+            "provider": "lmstudio",
+            "model": "auto",
+            "apiBase": "http://127.0.0.1:1234/v1"
+        },
+        {
+            "title": "Gemini 1.5 Flash (FREE)",
+            "provider": "gemini",
+            "model": "gemini-1.5-flash",
+            "apiKey": "${GEMINI_API_KEY}"
+        },
+        {
+            "title": "Groq - Llama 3.3 70B (FREE)",
+            "provider": "groq",
+            "model": "llama-3.3-70b-versatile",
+            "apiKey": "${GROQ_API_KEY}"
+        }
+    ],
+    "tabAutocompleteModel": {
+        "title": "Qwen2.5 Coder",
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-q4_K_M",
+        "apiBase": "http://127.0.0.1:11434"
+    },
+    "embeddingsProvider": {
+        "provider": "ollama",
+        "model": "nomic-embed-text",
+        "apiBase": "http://127.0.0.1:11434"
+    },
+    "experimental": {
+        "modelContextProtocol": {
+            "servers": {
+                "universal-llm-mcp": {
+                    "command": "node",
+                    "args": [
+                        "C:/Users/win11.2025/Desktop/antygravty google id/universal-llm-mcp/dist/index.js"
+                    ]
+                }
+            }
+        }
+    },
+    "contextProviders": [
+        {
+            "name": "code",
+            "params": {}
+        },
+        {
+            "name": "docs",
+            "params": {}
+        },
+        {
+            "name": "terminal",
+            "params": {}
+        },
+        {
+            "name": "problems",
+            "params": {}
+        },
+        {
+            "name": "folder",
+            "params": {}
+        }
+    ],
+    "customCommands": [
+        {
+            "name": "turkce",
+            "prompt": "Sen bir Türkçe asistansın. Tüm yanıtlarını Türkçe olarak ver.",
+            "description": "Türkçe moduna geç"
+        },
+        {
+            "name": "kod-yaz",
+            "prompt": "Verilen gereksinimlere göre temiz, iyi açıklanmış kod yaz. Kodun yanına Türkçe açıklamalar ekle.",
+            "description": "Türkçe açıklamalı kod yaz"
+        }
+    ]
+}

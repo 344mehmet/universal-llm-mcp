@@ -1,0 +1,86 @@
+# Universal LLM MCP - Docker Compose (Memory Optimized)
+# Yerel Ollama kullanır, düşük RAM tüketimi
+# docker-compose up -d
+
+services:
+  # ========================================
+  # NGINX REVERSE PROXY (HTTPS)
+  # ========================================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Open WebUI HTTPS
+      - "3002:3002" # MCP Gateway HTTPS
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - open-webui
+      - universal-mcp
+    # Memory limit: 64MB
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ========================================
+  # OPEN WEBUI - Web Arayüzü
+  # ========================================
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    expose:
+      - "8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - WEBUI_AUTH=false
+    # Memory limit: 512MB
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ========================================
+  # UNIVERSAL MCP SUNUCUSU
+  # ========================================
+  universal-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: universal-mcp
+    restart: unless-stopped
+    expose:
+      - "3002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./data:/app/data
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - ANYTHINGLLM_URL=http://host.docker.internal:3001
+      - NODE_OPTIONS=--max-old-space-size=256
+    # Memory limit: 256MB
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  open_webui_data:
+
+
+networks:
+  default:
+    name: llm-network

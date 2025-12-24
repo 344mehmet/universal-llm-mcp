@@ -14,9 +14,11 @@ const __dirname = dirname(__filename);
 // Backend yapılandırma tipi
 export interface BackendConfig {
     enabled: boolean;
-    url: string;
+    url?: string;
     defaultModel: string;
     timeout: number;
+    apiKey?: string;
+    workspace?: string;
     aciklama?: string;
 }
 
@@ -123,9 +125,8 @@ export class ConfigManager {
         try {
             if (existsSync(this.configPath)) {
                 const icerik = readFileSync(this.configPath, 'utf-8');
-                // JSON yorumlarını temizle
-                const temizIcerik = icerik.replace(/\/\/.*$/gm, '').replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-                const yuklenenConfig = JSON.parse(temizIcerik);
+                // JSON formatında yorum desteklenmiyor, temizleme gerekmez
+                const yuklenenConfig = JSON.parse(icerik);
                 return { ...defaultConfig, ...yuklenenConfig };
             }
         } catch (hata) {
